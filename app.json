@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Billawar Poster Studio",
+    "slug": "billawar-poster-studio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "billawarposterstudio",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "assetBundlePatterns": ["assets/**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.billawarassociation.posterstudio",
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "Poster Studio saves exported posters to your photo library."
+      }
+    },
+    "android": {
+      "package": "org.billawarassociation.posterstudio",
+      "adaptiveIcon": { "backgroundColor": "#7B1113" }
+    },
+    "plugins": ["expo-font", "expo-media-library", "@shopify/react-native-skia"],
+    "experiments": { "typedRoutes": false }
+  }
+}
