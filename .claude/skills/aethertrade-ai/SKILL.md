@@ -1,0 +1,1 @@
+../../../aethertrade-ai/SKILL.md

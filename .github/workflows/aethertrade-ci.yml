@@ -1,0 +1,90 @@
+name: aethertrade-ci
+
+on:
+  push:
+    paths:
+      - "aethertrade-ai/**"
+      - ".github/workflows/aethertrade-ci.yml"
+  pull_request:
+    paths:
+      - "aethertrade-ai/**"
+      - ".github/workflows/aethertrade-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aethertrade-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, types, tests on TimescaleDB + Redis)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: aethertrade-ai/backend
+    services:
+      db:
+        image: timescale/timescaledb:2.32.1-pg16
+        env:
+          POSTGRES_USER: aether
+          POSTGRES_PASSWORD: aether_ci
+          POSTGRES_DB: aethertrade
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aether -d aethertrade"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      AETHER_TEST_DATABASE_URL: postgresql+asyncpg://aether:aether_ci@localhost:5432/aethertrade_test
+      AETHER_TEST_REDIS_URL: redis://localhost:6379/15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "0.11.32"
+          enable-cache: true
+          cache-dependency-glob: aethertrade-ai/backend/uv.lock
+      - name: Install
+        run: uv sync --frozen
+      - name: Lint and format
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check (mypy --strict)
+        run: uv run mypy app tests
+      - name: Tests (unit, API, integration, migrations)
+        run: uv run pytest
+
+  frontend:
+    name: Frontend (lint, types, unit tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: aethertrade-ai/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: aethertrade-ai/frontend/package-lock.json
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+        env:
+          AETHER_BACKEND_URL: http://localhost:8000
+          NEXT_TELEMETRY_DISABLED: "1"
